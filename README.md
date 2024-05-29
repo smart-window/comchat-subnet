@@ -1,8 +1,9 @@
 # ComChat Subnet
 
-ComChat subnet is the backend of the comchat app(https://app.comchat.io)
-ComChat app user's prompt will be forwarded to the comchat subnet and subnet will choose the best miner and get the response from the miners so that subnet provides the best answer to the end users all the time.
-ComChat subnet use 8 ai services including openai, anthropic, openrouter, groq, gemini, perplexity, mistralai and togetherai.
+ComChat subnet serves as the backend for the ComChat app (https://app.comchat.io). 
+When a user submits a prompt in the ComChat app, it is forwarded to the ComChat subnet. 
+The subnet then selects the best miner from the subnet which provides OpenAI, Anthropic, OpenRouter, Groq, Gemini, Perplexity, MistralAI, and TogetherAI
+This ensures that users always receive the highest quality answers.
 
 ## Netuid
 
