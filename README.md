@@ -35,7 +35,7 @@ PERPLEXITY_API_KEY=<perplexity-api-key>
 From the root of your project, you can just call **comx module serve**. For example:
 
 ```sh
-comx module serve comchat.subnet.miner.model.Miner <name-of-your-com-key> [--subnets-whitelist <comchat-subnet-netuid>] [--ip <text>] [--port <number>]
+comx module serve comchat.miner.model.Miner <name-of-your-com-key> [--subnets-whitelist <comchat-subnet-netuid>] [--ip <text>] [--port <number>]
 ```
 
 ### Validator
@@ -43,7 +43,7 @@ comx module serve comchat.subnet.miner.model.Miner <name-of-your-com-key> [--sub
 To run the validator, just call the file in which you are executing `validator.validate_loop()`. For example:
 
 ```sh
-python3 -m comchat.subnet.cli <name-of-your-com-key>
+python3 -m comchat.cli <name-of-your-com-key>
 ```
 
 ## Further reading
