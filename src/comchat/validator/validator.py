@@ -187,7 +187,7 @@ class TextValidator(Module):
         key: Keypair,
         netuid: int,
         client: CommuneClient,
-        call_timeout: int = 60,
+        call_timeout: int,
     ) -> None:
         super().__init__()
         self.client = client
@@ -233,6 +233,7 @@ class TextValidator(Module):
         module_ip, module_port = connection
         client = ModuleClient(module_ip, int(module_port), self.key)
         try:
+            start_time = time.time()
             # handles the communication with the miner
             miner_answer = asyncio.run(
                 client.call(
@@ -246,7 +247,10 @@ class TextValidator(Module):
                     timeout=self.call_timeout,  #  type: ignore
                 )
             )
-            miner_answer = miner_answer["answer"]
+            
+            end_time = time.time()
+            response_time = end_time - start_time
+            miner_answer["response_time"] = response_time
 
         except Exception as e:
             log(f"Miner {module_ip}:{module_port} failed to generate an answer")
@@ -259,7 +263,6 @@ class TextValidator(Module):
         distance = Levenshtein.distance(api_answer, miner_answer)
         similarity = 1 - (distance / max(len(api_answer), len(miner_answer)))
         
-        print(f"Levenshtein similarity: {similarity}")
         return similarity
     
     def cosine_similarity(self, api_answer:str, miner_answer: str):
@@ -268,7 +271,6 @@ class TextValidator(Module):
 
         cos_sim = cosine_similarity(vectors)
         
-        print(f"Cosine similarity: {cos_sim[0][1]}")
         return cos_sim[0][1]
     
     def jaccard_similarity(self, api_answer:str, miner_answer: str):
@@ -279,7 +281,6 @@ class TextValidator(Module):
         union = set1.union(set2)
         similarity = len(intersection) / len(union)
         
-        print(f"Jaccard similarity: {similarity}")
         return similarity
     
     def tf_idf_similarity(self, api_answer:str, miner_answer: str):
@@ -288,10 +289,9 @@ class TextValidator(Module):
 
         cos_sim = cosine_similarity(vectors)
         
-        print(f"TF-IDF similarity: {cos_sim[0][1]}")
         return cos_sim[0][1]
 
-    def _score_miner(self, api_answer:str, miner_answer: str):
+    def _score_miner(self, api_answer:str, miner_answer: str, response_time: float):
         """
         Score the generated answer against the validator's own answer.
 
@@ -315,8 +315,9 @@ class TextValidator(Module):
             
             similarity = (levenshtein_similarity + cosine_similarity + jaccard_similarity + tf_idf_similarity) / 4
 
-            log(f"🟢 Similarity: {similarity}")
-            return similarity
+            score = similarity * 0.7 + (1 / response_time) * 0.3
+            log(f"🟢 Similarity: {similarity}, Response Time: {response_time}, Score: {score}")
+            return score
         except Exception as e:
             log(f"Error in score the miners: {str(e)}")
             raise
@@ -384,16 +385,17 @@ class TextValidator(Module):
 
         service_instance = service_class(model)
         api_answer = service_instance.generate(prompt)
-        print(f"API Answer: {api_answer}")
         
         # Score the miners
         for uid, miner_response in zip(modules_info.keys(), miner_answers):
-            miner_answer = miner_response
-            if not miner_answer:
+            if not miner_response:
                 log(f"🔴 Skipping miner {uid} that didn't answer")
                 continue
             
-            score = self._score_miner(api_answer, miner_answer)
+            miner_answer = miner_response["answer"]
+            response_time = miner_response["response_time"]
+            
+            score = self._score_miner(api_answer, miner_answer, response_time)
             time.sleep(0.5)
             # score has to be lower or eq to 1, as one is the best score, you can implement your custom logic
             assert score <= 1
