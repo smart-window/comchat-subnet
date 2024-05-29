@@ -1,7 +1,8 @@
 from communex.module import Module, endpoint
 from communex.key import generate_keypair
 from keylimiter import TokenBucketLimiter
-
+from fastapi import HTTPException
+from comchat.models import get_service_class
 
 class Miner(Module):
     """
@@ -13,21 +14,36 @@ class Miner(Module):
     Methods:
         generate: Generates a response to a given prompt using a specified model.
     """
-
     @endpoint
-    def generate(self, prompt: str, model: str = "foo"):
+    def generate(self, service: str, model: str, prompt: str):
         """
         Generates a response to a given prompt using a specified model.
 
         Args:
+            service: The service to use for generating the response. (ex: openai, anthropic ...)
+            model: The model to use for generating the response.
             prompt: The prompt to generate a response for.
-            model: The model to use for generating the response (default: "gpt-3.5-turbo").
 
         Returns:
             None
         """
-        print(f"Answering: `{prompt}` with model `{model}`")
+        print(f"🟡 Service: {service}, Model: {model}, Prompt: {prompt}")
 
+        if not service or not model or not prompt:
+            raise HTTPException(status_code=400, detail=f"Invalid input")
+
+        service_class = get_service_class(service)
+        if not service_class:
+            raise HTTPException(status_code=400, detail=f"Service not supported")
+
+        service_instance = service_class(model)
+        response = service_instance.generate(prompt)
+        print(f"🟢 Answer: {response}")
+
+        result = {}
+        result["answer"] = response
+
+        return result
 
 if __name__ == "__main__":
     """
@@ -35,7 +51,7 @@ if __name__ == "__main__":
     """
     from communex.module.server import ModuleServer
     import uvicorn
-
+    
     key = generate_keypair()
     miner = Miner()
     refill_rate = 1 / 400

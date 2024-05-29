@@ -24,12 +24,20 @@ import concurrent.futures
 import re
 import time
 from functools import partial
+import random
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import CountVectorizer
+import Levenshtein
 
 from communex.client import CommuneClient  # type: ignore
 from communex.module.client import ModuleClient  # type: ignore
 from communex.module.module import Module  # type: ignore
 from communex.types import Ss58Address  # type: ignore
 from substrateinterface import Keypair  # type: ignore
+from fastapi import HTTPException
+from comchat.models import get_service_class
+from .services import service_and_models
 
 from ._config import ValidatorSettings
 from ..utils import log
@@ -114,7 +122,7 @@ def extract_address(string: str):
     return re.search(IP_REGEX, string)
 
 
-def get_subnet_netuid(clinet: CommuneClient, subnet_name: str = "replace-with-your-subnet-name"):
+def get_subnet_netuid(client: CommuneClient, subnet_name: str = "replace-with-comchat"):
     """
     Retrieve the network UID of the subnet.
 
@@ -129,7 +137,7 @@ def get_subnet_netuid(clinet: CommuneClient, subnet_name: str = "replace-with-yo
         ValueError: If the subnet is not found.
     """
 
-    subnets = clinet.query_map_subnet_names()
+    subnets = client.query_map_subnet_names()
     for netuid, name in subnets.items():
         if name == subnet_name:
             return netuid
@@ -206,6 +214,8 @@ class TextValidator(Module):
 
     def _get_miner_prediction(
         self,
+        service: str,
+        model: str,
         question: str,
         miner_info: tuple[list[str], Ss58Address],
     ) -> str | None:
@@ -228,7 +238,11 @@ class TextValidator(Module):
                 client.call(
                     "generate",
                     miner_key,
-                    {"prompt": question},
+                    {
+                        "service": service,
+                        "model": model,
+                        "prompt": question,
+                    },
                     timeout=self.call_timeout,  #  type: ignore
                 )
             )
@@ -240,11 +254,49 @@ class TextValidator(Module):
             miner_answer = None
         return miner_answer
 
-    def _score_miner(self, miner_answer: str | None) -> float:
+
+    def levenshtein_similarity(self, api_answer:str, miner_answer: str):
+        distance = Levenshtein.distance(api_answer, miner_answer)
+        similarity = 1 - (distance / max(len(api_answer), len(miner_answer)))
+        
+        print(f"Levenshtein similarity: {similarity}")
+        return similarity
+    
+    def cosine_similarity(self, api_answer:str, miner_answer: str):
+        vectorizer = CountVectorizer().fit_transform([api_answer, miner_answer])
+        vectors = vectorizer.toarray()
+
+        cos_sim = cosine_similarity(vectors)
+        
+        print(f"Cosine similarity: {cos_sim[0][1]}")
+        return cos_sim[0][1]
+    
+    def jaccard_similarity(self, api_answer:str, miner_answer: str):
+        set1 = set(api_answer.split())
+        set2 = set(miner_answer.split())
+        
+        intersection = set1.intersection(set2)
+        union = set1.union(set2)
+        similarity = len(intersection) / len(union)
+        
+        print(f"Jaccard similarity: {similarity}")
+        return similarity
+    
+    def tf_idf_similarity(self, api_answer:str, miner_answer: str):
+        vectorizer = TfidfVectorizer().fit_transform([api_answer, miner_answer])
+        vectors = vectorizer.toarray()
+
+        cos_sim = cosine_similarity(vectors)
+        
+        print(f"TF-IDF similarity: {cos_sim[0][1]}")
+        return cos_sim[0][1]
+
+    def _score_miner(self, api_answer:str, miner_answer: str):
         """
         Score the generated answer against the validator's own answer.
 
         Args:
+            api_answer: The generated answer from the validator module.
             miner_answer: The generated answer from the miner module.
 
         Returns:
@@ -254,8 +306,20 @@ class TextValidator(Module):
         # Implement your custom scoring logic here
         if not miner_answer:
             return 0
+        
+        try:
+            levenshtein_similarity = self.levenshtein_similarity(api_answer, miner_answer)
+            cosine_similarity = self.cosine_similarity(api_answer, miner_answer)
+            jaccard_similarity = self.jaccard_similarity(api_answer, miner_answer)
+            tf_idf_similarity = self.tf_idf_similarity(api_answer, miner_answer)
+            
+            similarity = (levenshtein_similarity + cosine_similarity + jaccard_similarity + tf_idf_similarity) / 4
 
-        return 0
+            log(f"🟢 Similarity: {similarity}")
+            return similarity
+        except Exception as e:
+            log(f"Error in score the miners: {str(e)}")
+            raise
 
     def get_miner_prompt(self) -> str:
         """
@@ -266,7 +330,7 @@ class TextValidator(Module):
         """
 
         # Implement your custom prompt generation logic here
-        return "foo"
+        return "What model do you use?"
 
     async def validate_step(
         self, syntia_netuid: int, settings: ValidatorSettings
@@ -299,8 +363,13 @@ class TextValidator(Module):
 
         score_dict: dict[int, float] = {}
 
-        miner_prompt = self.get_miner_prompt()
-        get_miner_prediction = partial(self._get_miner_prediction, miner_prompt)
+        # Randomly choose ai service and model for miner prompt
+        service = random.choice(list(service_and_models.keys()))
+        model = random.choice(service_and_models[service])
+
+        # Get answer from the miners
+        prompt = self.get_miner_prompt()
+        get_miner_prediction = partial(self._get_miner_prediction, service, model, prompt)
 
         log(f"Selected the following miners: {modules_info.keys()}")
 
@@ -308,13 +377,23 @@ class TextValidator(Module):
             it = executor.map(get_miner_prediction, modules_info.values())
             miner_answers = [*it]
 
+        # Get api answer to compare it with miner response
+        service_class = get_service_class(service)
+        if not service_class:
+            raise HTTPException(status_code=400, detail=f"Service not supported")
+
+        service_instance = service_class(model)
+        api_answer = service_instance.generate(prompt)
+        print(f"API Answer: {api_answer}")
+        
+        # Score the miners
         for uid, miner_response in zip(modules_info.keys(), miner_answers):
             miner_answer = miner_response
             if not miner_answer:
-                log(f"Skipping miner {uid} that didn't answer")
+                log(f"🔴 Skipping miner {uid} that didn't answer")
                 continue
-
-            score = self._score_miner(miner_answer)
+            
+            score = self._score_miner(api_answer, miner_answer)
             time.sleep(0.5)
             # score has to be lower or eq to 1, as one is the best score, you can implement your custom logic
             assert score <= 1
@@ -342,5 +421,5 @@ class TextValidator(Module):
             elapsed = time.time() - start_time
             if elapsed < settings.iteration_interval:
                 sleep_time = settings.iteration_interval - elapsed
-                log(f"Sleeping for {sleep_time}")
+                log(f"🟡 Sleeping for {sleep_time}")
                 time.sleep(sleep_time)

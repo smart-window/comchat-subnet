@@ -1,12 +1,13 @@
 import typer 
 from typing import Annotated
+from dotenv import load_dotenv
 
 from communex._common import get_node_url  # type: ignore
 from communex.client import CommuneClient  # type: ignore
 from communex.compat.key import classic_load_key  # type: ignore
 
-from validator._config import ValidatorSettings
-from validator.validator import get_subnet_netuid, TextValidator
+from comchat.validator._config import ValidatorSettings
+from comchat.validator.validator import get_subnet_netuid, TextValidator
 
 app = typer.Typer()
 
@@ -17,11 +18,14 @@ def serve(
         str, typer.Argument(help="Name of the key present in `~/.commune/key`")
     ],
     call_timeout: int = 65,
+    use_testnet: bool = False
 ):
+    load_dotenv()  # Load environment variables from .env
+     
     keypair = classic_load_key(commune_key)  # type: ignore
     settings = ValidatorSettings()  # type: ignore
-    c_client = CommuneClient(get_node_url())
-    subnet_uid = get_subnet_netuid("your-subnet-name")
+    c_client = CommuneClient(get_node_url(use_testnet=use_testnet))
+    subnet_uid = get_subnet_netuid(c_client, "comchat")
     validator = TextValidator(
         keypair,
         subnet_uid,
