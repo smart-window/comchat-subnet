@@ -78,7 +78,3 @@ python3 -m comchat.cli <name-of-your-com-key>
 ```sh
 python3 -m comchat.cli <name-of-your-com-key> --use-testnet
 ```
-
-## Further reading
-
-For full documentation of the Commune AI ecosystem, please visit the [Official Commune Page](https://communeai.org/), and it's developer documentation. There you can learn about all subnet details, deployment, and more!
