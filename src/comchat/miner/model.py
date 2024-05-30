@@ -27,7 +27,7 @@ class Miner(Module):
         Returns:
             None
         """
-        print(f"🟡 Service: {service}, Model: {model}, Prompt: {prompt}")
+        print(f"🟡 Service: {service}, Model: {model}")
 
         if not service or not model or not prompt:
             raise HTTPException(status_code=400, detail=f"Invalid input")

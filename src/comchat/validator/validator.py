@@ -25,6 +25,7 @@ import re
 import time
 from functools import partial
 import random
+import requests
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import CountVectorizer
@@ -253,8 +254,7 @@ class TextValidator(Module):
             miner_answer["response_time"] = response_time
 
         except Exception as e:
-            log(f"Miner {module_ip}:{module_port} failed to generate an answer")
-            print(e)
+            print(f"🔴 Miner {module_ip}:{module_port} failed to generate an answer", e)
             miner_answer = None
         return miner_answer
 
@@ -316,22 +316,33 @@ class TextValidator(Module):
             similarity = (levenshtein_similarity + cosine_similarity + jaccard_similarity + tf_idf_similarity) / 4
 
             score = similarity * 0.7 + (1 / response_time) * 0.3
-            log(f"🟢 Similarity: {similarity}, Response Time: {response_time}, Score: {score}")
+            print(f"🟢 Similarity: {similarity}, Response Time: {response_time}, Score: {score}")
             return score
         except Exception as e:
-            log(f"Error in score the miners: {str(e)}")
+            print(f"Error in score the miners: {str(e)}")
             raise
 
-    def get_miner_prompt(self) -> str:
+    def get_miner_prompt(self, service: str, model: str) -> str:
         """
         Generate a prompt for the miner modules.
 
         Returns:
             The generated prompt for the miner modules.
         """
-
-        # Implement your custom prompt generation logic here
-        return "What model do you use?"
+        
+        url = "https://opentdb.com/api.php?amount=1&difficulty=hard"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            question = data['results'][0]['question']
+            return f"""
+                        You are the AI assistant that uses the {model} model by {service}.
+                        If not, provide an empty message.
+                        If yes, please answer the following question:
+                        {question}
+                    """
+        else:
+            return None
 
     async def validate_step(
         self, syntia_netuid: int, settings: ValidatorSettings
@@ -369,10 +380,15 @@ class TextValidator(Module):
         model = random.choice(service_and_models[service])
 
         # Get answer from the miners
-        prompt = self.get_miner_prompt()
+        prompt = None
+        while prompt is None:
+            prompt = self.get_miner_prompt(service, model)
+            if prompt is None:
+                print(f"Failed to fetch question from opentdb")
+                time.sleep(1)
         get_miner_prediction = partial(self._get_miner_prediction, service, model, prompt)
 
-        log(f"Selected the following miners: {modules_info.keys()}")
+        print(f"Selected the following miners: {modules_info.keys()}")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
             it = executor.map(get_miner_prediction, modules_info.values())
@@ -389,7 +405,7 @@ class TextValidator(Module):
         # Score the miners
         for uid, miner_response in zip(modules_info.keys(), miner_answers):
             if not miner_response:
-                log(f"🔴 Skipping miner {uid} that didn't answer")
+                print(f"Skipping miner {uid} that didn't answer")
                 continue
             
             miner_answer = miner_response["answer"]
@@ -402,7 +418,7 @@ class TextValidator(Module):
             score_dict[uid] = score
 
         if not score_dict:
-            log("No miner managed to give a valid answer")
+            print("No miner managed to give a valid answer")
             return None
 
         # the blockchain call to set the weights
@@ -423,5 +439,5 @@ class TextValidator(Module):
             elapsed = time.time() - start_time
             if elapsed < settings.iteration_interval:
                 sleep_time = settings.iteration_interval - elapsed
-                log(f"🟡 Sleeping for {sleep_time}")
+                print(f"🟡 Sleeping for {sleep_time}")
                 time.sleep(sleep_time)
