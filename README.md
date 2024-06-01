@@ -57,6 +57,12 @@ From the root of your project, you can just call **comx module serve**. For exam
 comx module serve comchat.miner.model.Miner <name-of-your-com-key> [--subnets-whitelist <comchat-subnet-netuid>] [--ip <text>] [--port <number>]
 ```
 
+or using pm2 
+
+```sh
+pm2 start "comx module serve comchat.miner.model.Miner <name-of-your-com-key> [--subnets-whitelist <comchat-subnet-netuid>] [--ip <text>] [--port <number>]" --name <pm2-process-name> --time
+```
+
 - Testnet
 
 ```sh
