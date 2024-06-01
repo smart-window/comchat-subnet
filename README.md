@@ -7,7 +7,7 @@ This ensures that users always receive the highest quality answers.
 
 ## Netuid
 
-- Mainnet: 6
+- Mainnet: 2
 - Testnet: 17
 
 ## Miner Validation
