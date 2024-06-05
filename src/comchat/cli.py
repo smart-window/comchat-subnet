@@ -17,7 +17,7 @@ def serve(
     commune_key: Annotated[
         str, typer.Argument(help="Name of the key present in `~/.commune/key`")
     ],
-    call_timeout: int = 30,
+    call_timeout: int = 10,
     use_testnet: bool = False
 ):
     load_dotenv()  # Load environment variables from .env

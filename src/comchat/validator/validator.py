@@ -390,7 +390,7 @@ class TextValidator(Module):
 
         print(f"Selected the following miners: {modules_info.keys()}")
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
             it = executor.map(get_miner_prediction, modules_info.values())
             miner_answers = [*it]
 
@@ -402,21 +402,30 @@ class TextValidator(Module):
         service_instance = service_class(model)
         api_answer = service_instance.generate(prompt)
         
-        # Score the miners
-        for uid, miner_response in zip(modules_info.keys(), miner_answers):
+        def score_miner(uid, miner_response, api_answer):
             if not miner_response:
                 print(f"Skipping miner {uid} that didn't answer")
-                continue
-            
+                return uid, None
+
             miner_answer = miner_response["answer"]
             response_time = miner_response["response_time"]
-            
-            score = self._score_miner(api_answer, miner_answer, response_time)
-            time.sleep(0.5)
-            # score has to be lower or eq to 1, as one is the best score, you can implement your custom logic
-            assert score <= 1
-            score_dict[uid] = score
 
+            score = self._score_miner(api_answer, miner_answer, response_time)
+            assert score <= 1
+            return uid, score
+
+        # Score the miners
+        with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
+            futures = [
+                executor.submit(score_miner, uid, miner_response, api_answer)
+                for uid, miner_response in zip(modules_info.keys(), miner_answers)
+            ]
+            
+            for future in concurrent.futures.as_completed(futures):
+                uid, score = future.result()
+                if score is not None:
+                    score_dict[uid] = score
+                
         if not score_dict:
             print("No miner managed to give a valid answer")
             return None
