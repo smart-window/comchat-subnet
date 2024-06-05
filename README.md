@@ -7,7 +7,7 @@ This ensures that users always receive the highest quality answers.
 
 ## Netuid
 
-- Mainnet: 6
+- Mainnet: 2
 - Testnet: 17
 
 ## Miner Validation
@@ -57,6 +57,12 @@ From the root of your project, you can just call **comx module serve**. For exam
 comx module serve comchat.miner.model.Miner <name-of-your-com-key> [--subnets-whitelist <comchat-subnet-netuid>] [--ip <text>] [--port <number>]
 ```
 
+or using pm2 
+
+```sh
+pm2 start "comx module serve comchat.miner.model.Miner <name-of-your-com-key> [--subnets-whitelist <comchat-subnet-netuid>] [--ip <text>] [--port <number>]" --name <pm2-process-name> --time
+```
+
 - Testnet
 
 ```sh
@@ -73,6 +79,11 @@ To run the validator, just call the file in which you are executing `validator.v
 python3 -m comchat.cli <name-of-your-com-key>
 ```
 
+or using pm2
+
+```sh
+pm2 start ./src/comchat/cli.py --name <pm2-process-name> --time --interpreter python3 -- <name-of-your-com-key>
+```
 - Testnet
 
 ```sh
