@@ -315,8 +315,14 @@ class TextValidator(Module):
             
             similarity = (levenshtein_similarity + cosine_similarity + jaccard_similarity + tf_idf_similarity) / 4
 
-            score = similarity * 0.7 + (1 / response_time) * 0.3
+            if response_time < 1:
+                response_time = 1
+                
+            score = similarity * 0.8 + (1 / response_time) * 0.2
+            print(f"api_answer: {api_answer}")
+            print(f"miner_answer: {miner_answer}")
             print(f"🟢 Similarity: {similarity}, Response Time: {response_time}, Score: {score}")
+            
             return score
         except Exception as e:
             print(f"Error in score the miners: {str(e)}")
