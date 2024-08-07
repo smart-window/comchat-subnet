@@ -29,7 +29,7 @@ def log(
 
 # Get version from latest github
 def get_version():
-    url = "https://api.github.com/repos/smart-window/comchat-subnet/blob/main/src/comchat/__init__.py"
+    url = "https://raw.githubusercontent.com/smart-window/comchat-subnet/main/src/comchat/__init__.py"
     response = requests.get(url, timeout=10)
     if not response.ok:
         print("Github api call failed!")
