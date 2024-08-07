@@ -76,16 +76,5 @@ To run the validator, just call the file in which you are executing `validator.v
 - Mainnet
 
 ```sh
-python3 -m comchat.cli <name-of-your-com-key>
-```
-
-or using pm2
-
-```sh
-pm2 start ./src/comchat/cli.py --name <pm2-process-name> --time --interpreter python3 -- <name-of-your-com-key>
-```
-- Testnet
-
-```sh
-python3 -m comchat.cli <name-of-your-com-key> --use-testnet
+pm2 start src/comchat/start_validator.py --time --interpreter python3 -- --pm2_name <your-pm2-process-name> --key <name-of-your-validator-key>
 ```
