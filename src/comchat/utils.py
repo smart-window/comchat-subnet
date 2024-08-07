@@ -30,18 +30,23 @@ def log(
 # Get version from latest github
 def get_version():
     url = "https://raw.githubusercontent.com/smart-window/comchat-subnet/main/src/comchat/__init__.py"
-    response = requests.get(url, timeout=10)
-    if not response.ok:
-        print("Github api call failed!")
+
+    # Send a GET request to the URL
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Print the content of the file
+        file_content = response.text
+        lines = file_content.split('\n')
+
+        version_line = lines[0]
+        version_match = re.search(r'__version__ = "(.*?)"', version_line)
+        if not version_match:
+            raise Exception("Version information not found!")
+
+        return version_match.group(1)
+    else:
+        print(f'Failed to retrieve file: {response.status_code}')
         return None
-
-    content = response.json()['content']
-    decoded_content = base64.b64decode(content).decode('utf-8')
-    lines = decoded_content.split('\n')
-
-    version_line = lines[0]
-    version_match = re.search(r'__version__ = "(.*?)"', version_line)
-    if not version_match:
-        raise Exception("Version information not found!")
-
-    return version_match.group(1)
+    

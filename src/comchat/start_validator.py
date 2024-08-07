@@ -18,7 +18,7 @@ def update_and_restart(pm2_name, key):
             subprocess.run(["git", "reset", "--hard"])
             subprocess.run(["git", "pull"])
             subprocess.run(["pip", "install", "-e", "."])
-            subprocess.run(["pm2", "start", "cli.py", "--name", pm2_name, "--time", "--interpreter", "python3", "--", key])
+            subprocess.run(["pm2", "start", "src/comchat/cli.py", "--name", pm2_name, "--time", "--interpreter", "python3", "--", key])
             current_version = latest_version
         print("All up to date!")
         time.sleep(300)
