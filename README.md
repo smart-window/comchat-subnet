@@ -1,13 +1,13 @@
 # ComChat Subnet
 
-ComChat subnet serves as the backend for the ComChat app (https://app.comchat.io). 
+ComChat subnet serves as the backend for the ComChat app (https://app.comchat.ai). 
 When a user submits a prompt in the ComChat app, it is forwarded to the ComChat subnet. 
 The subnet then selects the best miner from the subnet which provides OpenAI, Anthropic, OpenRouter, Groq, Gemini, Perplexity, MistralAI, and TogetherAI
 This ensures that users always receive the highest quality answers.
 
 ## Netuid
 
-- Mainnet: 2
+- Mainnet: 15
 - Testnet: 17
 
 ## Miner Validation
@@ -40,11 +40,6 @@ Both validators and miners need to set environment variables in .env file.
 OPENAI_API_KEY=<openai-api-key>
 OPENROUTER_API_KEY=<openrouter-api-key>
 ANTHROPIC_API_KEY=<anthropic-api-key>
-GROQ_API_KEY=<groq-api-key>
-MISTRAL_API_KEY=<mistralai-api-key>
-TOGETHER_API_KEY=<togetherai-api-key>
-GEMINI_API_KEY=<gemini-api-key>
-PERPLEXITY_API_KEY=<perplexity-api-key>
 ```
 
 ### Miner
